@@ -6,7 +6,7 @@
     import requests
     from lxml import html
     #import pickle
-    from pandas import DataFrame as df
+    import pandas as pd
 
     def makeDayStrings():
         "Literally generate days of the week as a tuple"
@@ -45,9 +45,9 @@
         page = requests.get("https://en.wikipedia.org/wiki/" + day)
         groups = str(page.content).split("mw-headline")[1:]
 
-        last_valid_headline = None    
+        last_valid_headline = None
         headlines = {}
-    
+
         for group in groups:
             # We assume events, birthdays, holidays in that order
             headline = group.split("\">")[0].split("id=\"")[1]
@@ -70,7 +70,7 @@
             for li in data:
                 year = None
                 temp = li.split("</a>")[0].strip()
-            
+
                 if len(temp) < 5:continue
                 # Clause where a hidden 0 exists...
                 # - e.g May_21
@@ -118,13 +118,75 @@
             daymap[day] = events
         return(daymap)
 
+    dog = daysToYearsMap()
 
     # Create Pandas Dataframe and save to csv
     # format for use in R
-    dog = dayToYearsMap()
     tab = df.from_dict(dog).T
     tab.to_csv("daysToYearsMap.csv")
+
+
+    # To super wide format
+    newdf = pd.DataFrame(columns=["Year","Date", "Events", "Births", "Deaths"])
+    for day in dog:
+        print(day, end=" : ")
+        for typer in ("Events","Births","Deaths"):
+            print(typer, end=" ")
+            hein = dog[day][typer]
+            for year in hein:
+                # very inefficient, but screw it.
+                newdf = newdf.append(
+                    {"Year":year,"Date":day,
+                     "Events": typer=="Events",
+                     "Births": typer=="Births",
+                     "Deaths": typer=="Deaths"} , ignore_index=True)
+        print("")
+
+
+    newdf.to_csv("daysToYearsMap_superwide.csv")
   #+end_src
 
 
 * TODO Print the CSV using GGplot in R
+
+  #+begin_src R
+    library(ggplot2)
+    library(data.table)
+    require(reshape2)
+
+    ## Reformat CSV to Data.Frame
+    tab <- read.csv("daysToYearsMap.csv", row.names=1,
+                    stringsAsFactors = F, sep = ",")
+
+
+    nested2intlist <- function(element){
+      "Convert string to integer array of years"
+      trimmed <- substr(element, 2, nchar(element)-1)
+      strarr <- strsplit(trimmed, split=", ")[[1]]
+      return(as.numeric(strarr))
+    }
+
+    cod <- data.table(apply(tab, 1:2, nested2intlist),
+      keep.rownames = T, check.names = T)
+
+    cod$date <- cod$rn
+    cod$month <- as.factor(sub("(.*)_\\d*", "\\1", cod$date))
+    cod$day <- as.factor(as.integer(sub(".*_(\\d*)", "\\1", cod$date)))
+    cod$rn <- NULL
+
+    m <- melt(cod, id.vars = c("Events"))
+
+    ## ggplot
+    events.by.month <- cod$Events
+
+
+
+
+    ggplot(data = cod, aes(x=month, y=Events)) + geom_boxplot()
+
+
+    ggplot(cod) + geom_boxplot(aes(y=hist(cod$Events)))
+
+    ggplot(cod, aes(x=month, group=month)) + geom_boxplot(aes(y=Events))
+  #+end_src
+
