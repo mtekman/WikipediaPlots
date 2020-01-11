@@ -147,46 +147,110 @@
   #+end_src
 
 
-* TODO Print the CSV using GGplot in R
+* Print the CSV using GGplot in R
 
-  #+begin_src R
-    library(ggplot2)
-    library(data.table)
-    require(reshape2)
+** Initial attempt using compact format
 
-    ## Reformat CSV to Data.Frame
-    tab <- read.csv("daysToYearsMap.csv", row.names=1,
-                    stringsAsFactors = F, sep = ",")
+Trying to plot a boxplot when the data is structured from tab["January_1"]["Events"] = Array[years] is a pain in the butt. I tried reshaping/recasting it to a long format within R, but that was an exercise in futility. 
 
+   #+begin_src R
+     library(ggplot2)
+     library(data.table)
+     require(reshape2)
 
-    nested2intlist <- function(element){
-      "Convert string to integer array of years"
-      trimmed <- substr(element, 2, nchar(element)-1)
-      strarr <- strsplit(trimmed, split=", ")[[1]]
-      return(as.numeric(strarr))
-    }
-
-    cod <- data.table(apply(tab, 1:2, nested2intlist),
-      keep.rownames = T, check.names = T)
-
-    cod$date <- cod$rn
-    cod$month <- as.factor(sub("(.*)_\\d*", "\\1", cod$date))
-    cod$day <- as.factor(as.integer(sub(".*_(\\d*)", "\\1", cod$date)))
-    cod$rn <- NULL
-
-    m <- melt(cod, id.vars = c("Events"))
-
-    ## ggplot
-    events.by.month <- cod$Events
+     ## Reformat CSV to Data.Frame
+     tab <- read.csv("daysToYearsMap.csv", row.names=1,
+                     stringsAsFactors = F, sep = ",")
 
 
+     nested2intlist <- function(element){
+       "Convert string to integer array of years"
+       trimmed <- substr(element, 2, nchar(element)-1)
+       strarr <- strsplit(trimmed, split=", ")[[1]]
+       return(as.numeric(strarr))
+     }
+
+     cod <- data.table(apply(tab, 1:2, nested2intlist),
+       keep.rownames = T, check.names = T)
+
+     cod$date <- cod$rn
+     cod$month <- as.factor(sub("(.*)_\\d*", "\\1", cod$date))
+     cod$day <- as.factor(as.integer(sub(".*_(\\d*)", "\\1", cod$date)))
+     cod$rn <- NULL
+
+     m <- melt(cod, id.vars = c("Events"))
+
+     ## ggplot
+     events.by.month <- cod$Events
 
 
-    ggplot(data = cod, aes(x=month, y=Events)) + geom_boxplot()
 
 
-    ggplot(cod) + geom_boxplot(aes(y=hist(cod$Events)))
+     ggplot(data = cod, aes(x=month, y=Events)) + geom_boxplot()
 
-    ggplot(cod, aes(x=month, group=month)) + geom_boxplot(aes(y=Events))
-  #+end_src
+
+     ggplot(cod) + geom_boxplot(aes(y=hist(cod$Events)))
+
+     ggplot(cod, aes(x=month, group=month)) + geom_boxplot(aes(y=Events))
+   #+end_src
+
+I abandoned this approach and redid the python part above to give a super wide format so that each year is an observation and that variables are Year, Date, isEvent, isBirth, isDeath.
+
+** Second attempt using wide format
+
+   #+begin_src R
+     library(ggplot2)
+     #library(data.table)
+     #require(reshape2)
+
+     ## Reformat CSV to Data.Frame
+     tab <- read.csv("daysToYearsMap_superwide.csv",
+                     row.names=1,
+                     stringsAsFactors = F, sep = ",")
+
+     tab$Month <- factor(sub("(.*)_\\d*", "\\1", tab$Date),
+                         levels=c("January", "February", "March", "April", "May",
+                                  "June", "July", "August", "September", "October",
+                                  "November", "December"))
+     tab$Day <- factor(as.integer(sub(".*_(\\d*)", "\\1", tab$Date)),
+                       levels=seq(1,31))
+
+     ##### Months #####
+     # Feb, Jan, Oct seem to have a few dates nearer to 0 AD
+     ggplot(tab, aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years")
+
+     # Feb, Jan, Oct seem to have a few dates nearer to 0 AD
+     ggplot(tab[tab$Year > 0,], aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years > 0 AD")
+
+     # Virtually no difference
+     ggplot(tab[tab$Year > 1000,], aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years > 1000 AD")
+
+     # Virtually no difference
+     ggplot(tab[tab$Year > 1900,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years > 1900 AD")
+
+     # Virtually no difference
+     ggplot(tab[tab$Year > 2000,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years > 2000 AD") + scale_y_continuous(breaks = seq(2000, 2020, by = 2))
+
+     # Feb, Jan, Oct seem to have a lot of dates nearer to 0 AD
+     ggplot(tab[tab$Year < 1900,], aes(x=Month, y=Year, group=Month)) + geom_violin() + ggtitle("Months with Significant Years < 1900 AD")
+
+     # Big Feb, Jan, Oct difference seems to come from less 500 AD and peaks around 20 AD.
+     ggplot(tab[tab$Year < 1000 & tab$Year > -500,], aes(x=Month, y=Year, color=Month)) + geom_boxplot() + ggtitle("500 AD < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
+
+     # Feb is down, August and December up.
+     ggplot(tab[tab$Year < 0,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years (BC)") + scale_y_continuous(breaks = seq(-4000, 0, by = 200))
+
+     ### Days
+     # 1 - No major differences -- 5, 12, 22 seem significant around 0 AD 
+     ggplot(tab, aes(x=Day, y=Year)) + geom_violin(scale="count") + ggtitle("Days with Significant Years") + scale_y_continuous(breaks = c(seq(-100, 100, by = 100),seq(1700,2000, by=100)))
+
+     # 2 - Zoomed version of 1
+     ggplot(tab[tab$Year > -100,], aes(x=Day, y=Year)) + geom_violin(scale="count") + ggtitle("Days with Significant Years ( > 100 BC )") + scale_y_continuous(breaks = c(seq(-100, 100, by = 100), seq(1700,2000, by=100)))
+
+     # 3 - Zoomed version of 2
+     #     -- Day 15 seems to have crazy range
+     ggplot(tab[tab$Year > -100 & tab$Year < 100,], aes(x=Day, y=Year)) + geom_boxplot() + ggtitle("Days with Significant Years ( 100 BC - 100 AD )")
+
+     # 4 - 
+   #+end_src
 
