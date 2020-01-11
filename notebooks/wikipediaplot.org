@@ -1,0 +1,130 @@
+
+* Accumulate Data
+
+  #+begin_src python :session yes
+    import sys
+    import requests
+    from lxml import html
+    #import pickle
+    from pandas import DataFrame as df
+
+    def makeDayStrings():
+        "Literally generate days of the week as a tuple"
+        dates = {
+            29 : ("February",),
+            30 : ("September", "April", "June", "November"),
+            31 : ("January", "March", "May", "July",
+                  "August", "October", "December")
+        }
+        order = ("January", "February", "March", "April",
+                 "May", "June", "July", "August", "September",
+                 "October", "November", "December")
+
+        days = []
+        for month in order:
+            getday = [day for day in dates if month in dates[day]][0]
+            for d in range(getday):
+                days.append("%s_%d" % (month, (d+1)))
+        return(tuple(days))
+
+
+    def handleADBC(temp):
+        if temp.startswith("AD "):
+            temp = temp.split("AD ")[1]
+        elif temp.endswith(" AD"):
+            temp = temp.split(" AD")[0]
+        elif temp.endswith(" BC") or temp.endswith(" BCE"):
+            temp = "-" + temp.split(" BC")[0]
+        elif temp.startswith("BC ") or temp.startswith(" BCE"):
+            temp = "-" + temp.split()[1]
+        return(temp)
+
+
+    def getEventsDay(day):
+        "Take January_11 and extract the Events, Births, Deaths years"
+        page = requests.get("https://en.wikipedia.org/wiki/" + day)
+        groups = str(page.content).split("mw-headline")[1:]
+
+        last_valid_headline = None    
+        headlines = {}
+    
+        for group in groups:
+            # We assume events, birthdays, holidays in that order
+            headline = group.split("\">")[0].split("id=\"")[1]
+            data = group.split("<li>")
+
+            if len(data) > 1:
+                data = data[1:]
+
+            if headline in ("Events", "Births", "Deaths"):
+                last_valid_headline = headline
+
+            # Skip beginning and End
+            if last_valid_headline is None:continue
+            if headline in ("Holidays and observances", "References"):break
+
+            if last_valid_headline not in headlines:
+                headlines[last_valid_headline] = []
+
+            #pdb.set_trace()
+            for li in data:
+                year = None
+                temp = li.split("</a>")[0].strip()
+            
+                if len(temp) < 5:continue
+                # Clause where a hidden 0 exists...
+                # - e.g May_21
+                if "color:transparent;" in temp:
+                    temp = temp.split('>')[-1]
+                    year = int(handleADBC(temp))
+
+                elif temp.startswith("<a href=") or temp.split()[1] == "<a":
+                    #<a href="/wiki/.."
+                    temp = temp.split(">")[1]
+                    # AD and BC handlers
+                    temp = handleADBC(temp)
+
+                    ptw = temp.split()
+                    if len(ptw)>1:
+                        #print(ptw)
+                        continue
+                    try:
+                        year = int(temp)
+                    except ValueError:
+                        #print(temp)
+                        continue
+                else:
+                    try:
+                        year = int(temp.split()[0])
+                    except ValueError:
+                        #print("CCY", temp)
+                        continue
+
+                headlines[last_valid_headline].append(year)
+        return(headlines)
+
+
+    def daysToYearsMap(start=0):
+        days = makeDayStrings()[start:]
+        daymap = {}
+        for day in days:
+            events = getEventsDay(day)
+            print("%20s %4d %4d %4d" % (
+                day,
+                len(events["Events"]),
+                len(events["Births"]),
+                len(events["Deaths"])
+            ))
+            daymap[day] = events
+        return(daymap)
+
+
+    # Create Pandas Dataframe and save to csv
+    # format for use in R
+    dog = dayToYearsMap()
+    tab = df.from_dict(dog).T
+    tab.to_csv("daysToYearsMap.csv")
+  #+end_src
+
+
+* TODO Print the CSV using GGplot in R
