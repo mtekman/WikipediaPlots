@@ -300,13 +300,13 @@ I abandoned this approach and redid the python part above to give a super wide f
                        offset = -100, jump = 100)) +
        ggtitle("Months with Significant Years (Events)") +
        scale_y_continuous(breaks = c(seq(-50,50,50), seq(1800, 2020, by = 100)))
-  
+
 
 
      ## Births much less than deaths, duh.
      addNumbers(monthplot(sub.bd.a1900), type="BD", offset=10, jump=15) +
        geom_boxplot(aes(color=Type)) +
-       ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)") 
+       ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)")
 
      ## Events 1900 - 2025 -- No real difference
      addNumbers(monthplot(sub.ev.a1900), type="Ev", offset=0) +
@@ -342,7 +342,7 @@ I abandoned this approach and redid the python part above to give a super wide f
 
      # Feb is down, August and December up.
      addNumbers(violin(monthplot(sub.all.b0)),
-                offset = 0, jump = 250) + 
+                offset = 0, jump = 250) +
        ggtitle("Months with Significant Years (BC)") +
        scale_y_continuous(breaks = seq(-4000, 0, by = 200))
 
@@ -363,38 +363,39 @@ I abandoned this approach and redid the python part above to give a super wide f
                                      seq(1700,2000, by=100)))
 
      addNumbers(violin(dayplot(sub.all.t100v100), toplot = c(1,1)),
-                offset = 0, jump = 10, size=3) + 
+                offset = 0, jump = 10, size=3) +
        ggtitle("Days with Significant Years ( 100 BC - 100 AD )") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
      addNumbers(violin(dayplot(sub.bd.t100v100), toplot = c(1,1)),
-                offset = 0, jump = 10, size=3) + 
+                offset = 0, jump = 10, size=3) +
        ggtitle("Days with Significant Years ( 100 BC - 100 AD ) (Births,Deaths)") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
      # More births than deaths overall
      addNumbers(violin(dayplot(sub.bd), toplot = c(1,1)),
-                offset = -100, jump = 150, size=3) + 
+                offset = -100, jump = 150, size=3) +
        ggtitle("Days with Significant Years (Births,Deaths)")
 
      ## More births than deaths overall, post 1900, but no day sticks
      ## out more than any other.
      addNumbers(dayplot(sub.bd.a1900) + geom_boxplot(aes(color=Type)),
-                offset = -1, jump=7, size=3) + 
+                offset = -1, jump=7, size=3) +
        ggtitle("Days with Significant Years > 1900 (Births,Deaths)")
 
      ## Same for events, nothing really significant post 1900
      #addNumbers(
-     dayplot(sub.ev.a1900) + geom_boxplot(aes(color=Type)) +
+     dayplot(sub.ev.a1900) +
        ggtitle("Days with Significant Years > 1900 (Events)") +
-       geom_bar(data=sub.ev.a1900, stat='count', aes(x=Day,y=..count..))
+       geom_boxplot(aes(color=Type)) +
+       addNumbers(geom_bar(data=sub.ev.a1900, stat='count', aes(x=Day,y=1900+(..count..*0.05))),
+                  type="Ev", offset=0) +
+       coord_cartesian(ylim = c(1900,2020)) + 
+       scale_y_continuous(sec.axis = sec_axis(~(.-1900)/0.05, breaks = seq(0,600,100),
+                                              name="Number of Observations"))
 
 
-         ## pl1 <- pl1 + geom_label(
-         ##                data=tab[tab$Type=="Births",],
-         ##                aes(label=..count.., color=Type),
-         ##                stat='count', y=min(tab$Year)+offset,
-         ##                size = size)
+     addNumbers(dayplot(sub.ev.a1900) + geom_boxplot(), type="Ev", offset=0)
    #+end_src
 
    
