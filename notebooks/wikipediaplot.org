@@ -211,21 +211,17 @@ I abandoned this approach and redid the python part above to give a super wide f
      tab$Day <- factor(as.integer(sub(".*_(\\d*)", "\\1", tab$Date)),
                        levels=seq(1,31))
 
-
-     ##### Months #####
-     plot.months.all <- ggplot(tab, aes(x=Month, y=Year))
-     plot.months.birthdeath <- ggplot(tab[tab$Type %in% c("Births","Deaths"),],aes(x=Month, y=Year))
-     plot.months.events <- ggplot(tab[tab$Type=="Events",],aes(x=Month, y=Year))
-
-     addNumbers <- function(plt, tab, bd = TRUE, event = TRUE, offset = -100, jump = 150){
+     ##### Plotting Helper Functions
+     addNumbers <- function(plt, type="All", offset = -100, jump = 150){
        pl1 <- plt
-       if (event){
+       tab <- plt$data
+       if (type %in% c("All","Ev")){
          pl1 <- pl1 + geom_text(
                         data=tab[tab$Type=="Events",], aes(label=..count.., color=Type),
                         stat='count', y=min(tab$Year)+offset)
        }
-       if (bd){
-         if (event){ offset = offset + jump }
+       if (type %in% c("All","BD")){
+         if (type=="All"){ offset = offset + jump }
          pl1 <- pl1 + geom_text(
            data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
            stat='count', y=min(tab$Year)+offset)
@@ -239,35 +235,77 @@ I abandoned this approach and redid the python part above to give a super wide f
        return(pl1)
      }
 
+     violin <- function(plt, scale="count", toplot=c(1,1)){
+       pl1 <- plt
+       if (toplot[[1]] == 1){
+         pl1 <- pl1 + geom_violin(scale=scale)
+       }
+       if (toplot[[2]] == 1){
+         pl1 <- pl1 + geom_violin(scale=scale, aes(color=Type))
+       }
+       return(pl1)
+     }
+
+     monthplot <- function(dat){return(ggplot(dat, aes(x=Month, y=Year)))}
+     dayplot <- function(dat){return(ggplot(dat, aes(x=Day, y=Year)))}
+     dateplot <- function(dat){return(ggplot(dat, aes(x=Date, y=Year)))}
+
+
+     #### Sub Datasets ####
+     sub.all <- tab
+     sub.all.t100v100 <- tab[tab$Year < 100 & tab$Year > -100,]
+     sub.all.a1900 <- tab[tab$Year > 1900,]
+     sub.all.a2000 <- tab[tab$Year > 2000,]
+     sub.all.b1000 <- tab[tab$Year < 1000,]
+     sub.all.b0 <- tab[tab$Year < 0,]
+
+     sub.bd <- tab[tab$Type %in% c("Births","Deaths"),]
+     sub.bd.t100v100 <- sub.bd[sub.bd$Year < 100 & sub.bd$Year > -100,]
+     sub.bd.a1900 <- sub.bd[sub.bd$Year > 1900,]
+     sub.bd.a2000 <- sub.bd[sub.bd$Year > 2000,]
+     sub.bd.b1000 <- sub.bd[sub.bd$Year < 1000,]
+     sub.bd.b0 <- sub.bd[sub.bd$Year < 0,]
+
+     sub.ev <- tab[tab$Type=="Events",]
+     sub.ev.t100v100 <- sub.ev[sub.ev$Year < 100 & sub.ev$Year > -100,]
+     sub.ev.a1900 <- sub.ev[sub.ev$Year > 1900,]
+     sub.ev.a2000 <- sub.ev[sub.ev$Year > 2000,]
+     sub.ev.b1000 <- sub.ev[sub.ev$Year < 1000,]
+     sub.ev.b0 <- sub.ev[sub.ev$Year < 0,]
+
+
+     ##### Months #####
      ## 1. All
      ##    - Feb, Jan, Oct seem to have a few dates nearer to 0 AD
-     addNumbers(plot.months.all, tab) +
-       geom_violin(scale="count") +  geom_violin(scale="count", aes(color=Type)) +
+     violin(addNumbers(monthplot(sub.all))) +
        ggtitle("Months with Significant Years") +
        scale_y_continuous(breaks = c(seq(-4000,0,1000),
                                      seq(-100,100,100),
                                      seq(1800, 2020, by = 100)))
 
      # Births/Deaths ::: Jan, Feb, Oct
-     plot.months.birthdeath +
-       geom_violin(scale="count") +
-       geom_violin(scale="count", aes(color=Type)) +
-       geom_text(data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
-                 stat='count', y=min(data$Year)+400) +
-       geom_text(data=tab[tab$Type=="Deaths",], aes(label=..count.., color=Type),
-                 stat='count', y=min(data$Year)+150) +
+     violin(addNumbers(monthplot(sub.bd), type = "BD",
+                       offset = -100, jump = 100)) +
        ggtitle("Months with Significant Years (Births, Deaths)") +
        scale_y_continuous(breaks = c(seq(-50,50,50),
                                      seq(1800, 2020, by = 100)))
 
      # Events -- not interesting
-     ggplot(tab[tab$Type == "Events",], aes(x=Month, y=Year)) + geom_violin(scale="count") + geom_violin(scale="count", aes(color=Type)) + ggtitle("Months with Significant Years (Events)") + scale_y_continuous(breaks = c(seq(-50,50,50), seq(1800, 2020, by = 100)))
+     violin(addNumbers(monthplot(sub.ev), type = "Ev",
+                       offset = -100, jump = 100)) +
+       ggtitle("Months with Significant Years (Events)") +
+       scale_y_continuous(breaks = c(seq(-50,50,50), seq(1800, 2020, by = 100)))
+  
 
-     # Not interesting
-     ggplot(tab[tab$Year > 0 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_violin(scale="count") + geom_violin(scale="count", aes(color=Type)) + ggtitle("Months with Significant Years > 0 AD (Births, Deaths)")
 
      ## Births much less than deaths, duh.
-     ggplot(tab[tab$Year > 1900 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)")
+     addNumbers(monthplot(sub.bd.a1900), type="BD", offset=10, jump=15) +
+       geom_boxplot(aes(color=Type)) +
+       ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)") +
+       geom_text(
+         data=sub.bd.a1900[sub.bd.a1900$Type=="Births",],
+         aes(label=..count.., color=Type, y=median(sub.bd.a1900$Year)),
+         stat='count')
 
      ## Events... - Really not a significant difference
      ggplot(tab[tab$Year > 1900 & tab$Type == "Events",], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 1900 AD")
