@@ -213,24 +213,43 @@ I abandoned this approach and redid the python part above to give a super wide f
 
 
      ##### Months #####
-     # Feb, Jan, Oct seem to have a few dates nearer to 0 AD
-     ggplot(tab, aes(x=Month, y=Year)) +
-       geom_violin(scale="count") +
-       geom_violin(scale="count", aes(color=Type)) +
-       geom_text(data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
-                 stat='count', y=min(tab$Year)+400) +
-       geom_text(data=tab[tab$Type=="Deaths",], aes(label=..count.., color=Type),
-                 stat='count', y=min(tab$Year)+150) +
-       geom_text(data=tab[tab$Type=="Events",], aes(label=..count.., color=Type),
-                 stat='count', y=min(tab$Year)-100) +
+     plot.months.all <- ggplot(tab, aes(x=Month, y=Year))
+     plot.months.birthdeath <- ggplot(tab[tab$Type %in% c("Births","Deaths"),],aes(x=Month, y=Year))
+     plot.months.events <- ggplot(tab[tab$Type=="Events",],aes(x=Month, y=Year))
+
+     addNumbers <- function(plt, tab, bd = TRUE, event = TRUE, offset = -100, jump = 150){
+       pl1 <- plt
+       if (event){
+         pl1 <- pl1 + geom_text(
+                        data=tab[tab$Type=="Events",], aes(label=..count.., color=Type),
+                        stat='count', y=min(tab$Year)+offset)
+       }
+       if (bd){
+         if (event){ offset = offset + jump }
+         pl1 <- pl1 + geom_text(
+           data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
+           stat='count', y=min(tab$Year)+offset)
+
+         offset = offset + jump
+
+         pl1 <- pl1 + geom_text(
+                 data=tab[tab$Type=="Deaths",], aes(label=..count.., color=Type),
+                 stat='count', y=min(tab$Year)+offset)
+       }
+       return(pl1)
+     }
+
+     ## 1. All
+     ##    - Feb, Jan, Oct seem to have a few dates nearer to 0 AD
+     addNumbers(plot.months.all, tab) +
+       geom_violin(scale="count") +  geom_violin(scale="count", aes(color=Type)) +
        ggtitle("Months with Significant Years") +
        scale_y_continuous(breaks = c(seq(-4000,0,1000),
                                      seq(-100,100,100),
                                      seq(1800, 2020, by = 100)))
 
      # Births/Deaths ::: Jan, Feb, Oct
-     ggplot(tab[tab$Type %in% c("Births","Deaths"),],
-            aes(x=Month, y=Year)) +
+     plot.months.birthdeath +
        geom_violin(scale="count") +
        geom_violin(scale="count", aes(color=Type)) +
        geom_text(data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
@@ -262,13 +281,22 @@ I abandoned this approach and redid the python part above to give a super wide f
 
 
      # Big Feb, Jan, Oct difference seems to come from less 500 AD and peaks around 20 AD.
-     ggplot(tab[tab$Year < 1000 & tab$Year > -1000 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("500 AD < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
+     ggplot(tab[tab$Year < 1000 & tab$Year > -1000 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("1000 BC < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
+
+     # Big Feb, Jan, Oct difference seems to come from less 500 AD and peaks around 20 AD.
+     ggplot(tab[tab$Year < 1000 & tab$Year > -1000 & tab$Type=="Events",], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("1000 BC < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
 
      # Feb is down, August and December up.
      ggplot(tab[tab$Year < 0,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years (BC)") + scale_y_continuous(breaks = seq(-4000, 0, by = 200))
 
+     ## Months -100 to 100 Events
+     #
+     ggplot(tab[tab$Year > -100 & tab$Year < 100 & tab$Type=="Events",], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years 100 BC to 100 AD") + scale_y_continuous(breaks = seq(-4000, 0, by = 200))
+
+
+
      ### Days
-     # 1 - No major differences -- 5, 12, 22 seem significant around 0 AD 
+     # 1 - Most dates between 1700-2000, with a few blips between -100 to 100 in days 5,12,22. Days 3,7,11 seem to have most outliers.
      ggplot(tab, aes(x=Day, y=Year)) + geom_violin(scale="count") + ggtitle("Days with Significant Years") + scale_y_continuous(breaks = c(seq(-100, 100, by = 100),seq(1700,2000, by=100)))
 
      # 2 - Zoomed version of 1
@@ -278,6 +306,11 @@ I abandoned this approach and redid the python part above to give a super wide f
      #     -- Day 15 seems to have crazy range
      ggplot(tab[tab$Year > -100 & tab$Year < 100,], aes(x=Day, y=Year)) + geom_boxplot() + ggtitle("Days with Significant Years ( 100 BC - 100 AD )")
 
-     # 4 - 
+     # 4 - Births,Deaths of 3 -- Wacky to interpret
+     ggplot(tab[tab$Year > -100 & tab$Year < 100 & tab$Type %in% c("Births","Deaths"),], aes(x=Day, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Days with Significant Years ( 100 BC - 100 AD )")
+
+     # 5 - Events of 3 -- Also wacky to interpret
+     ggplot(tab[tab$Year > -100 & tab$Year < 100 & tab$Type=="Events",], aes(x=Day, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Days with Significant Years ( 100 BC - 100 AD )")
    #+end_src
 
+   
