@@ -127,23 +127,19 @@
 
 
     # To super wide format
-    newdf = pd.DataFrame(columns=["Year","Date", "Events", "Births", "Deaths"])
+    newdf = pd.DataFrame(columns=["Year","Date", "Type"])
     for day in dog:
         print(day, end=" : ")
         for typer in ("Events","Births","Deaths"):
             print(typer, end=" ")
             hein = dog[day][typer]
             for year in hein:
-                # very inefficient, but screw it.
-                newdf = newdf.append(
-                    {"Year":year,"Date":day,
-                     "Events": typer=="Events",
-                     "Births": typer=="Births",
-                     "Deaths": typer=="Deaths"} , ignore_index=True)
+                newdf = newdf.append({"Year":year,"Date":day,"Type":typer},
+                                     ignore_index=True)
         print("")
 
 
-    newdf.to_csv("daysToYearsMap_superwide.csv")
+    newdf.to_csv("daysToYearsMap_superwide2.csv")
   #+end_src
 
 
@@ -204,7 +200,7 @@ I abandoned this approach and redid the python part above to give a super wide f
      #require(reshape2)
 
      ## Reformat CSV to Data.Frame
-     tab <- read.csv("daysToYearsMap_superwide.csv",
+     tab <- read.csv("daysToYearsMap_superwide2.csv",
                      row.names=1,
                      stringsAsFactors = F, sep = ",")
 
@@ -215,27 +211,58 @@ I abandoned this approach and redid the python part above to give a super wide f
      tab$Day <- factor(as.integer(sub(".*_(\\d*)", "\\1", tab$Date)),
                        levels=seq(1,31))
 
+
      ##### Months #####
      # Feb, Jan, Oct seem to have a few dates nearer to 0 AD
-     ggplot(tab, aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years")
+     ggplot(tab, aes(x=Month, y=Year)) +
+       geom_violin(scale="count") +
+       geom_violin(scale="count", aes(color=Type)) +
+       geom_text(data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
+                 stat='count', y=min(tab$Year)+400) +
+       geom_text(data=tab[tab$Type=="Deaths",], aes(label=..count.., color=Type),
+                 stat='count', y=min(tab$Year)+150) +
+       geom_text(data=tab[tab$Type=="Events",], aes(label=..count.., color=Type),
+                 stat='count', y=min(tab$Year)-100) +
+       ggtitle("Months with Significant Years") +
+       scale_y_continuous(breaks = c(seq(-4000,0,1000),
+                                     seq(-100,100,100),
+                                     seq(1800, 2020, by = 100)))
 
-     # Feb, Jan, Oct seem to have a few dates nearer to 0 AD
-     ggplot(tab[tab$Year > 0,], aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years > 0 AD")
+     # Births/Deaths ::: Jan, Feb, Oct
+     ggplot(tab[tab$Type %in% c("Births","Deaths"),],
+            aes(x=Month, y=Year)) +
+       geom_violin(scale="count") +
+       geom_violin(scale="count", aes(color=Type)) +
+       geom_text(data=tab[tab$Type=="Births",], aes(label=..count.., color=Type),
+                 stat='count', y=min(data$Year)+400) +
+       geom_text(data=tab[tab$Type=="Deaths",], aes(label=..count.., color=Type),
+                 stat='count', y=min(data$Year)+150) +
+       ggtitle("Months with Significant Years (Births, Deaths)") +
+       scale_y_continuous(breaks = c(seq(-50,50,50),
+                                     seq(1800, 2020, by = 100)))
 
-     # Virtually no difference
-     ggplot(tab[tab$Year > 1000,], aes(x=Month, y=Year, group=Month)) + geom_violin(scale="count") + ggtitle("Months with Significant Years > 1000 AD")
+     # Events -- not interesting
+     ggplot(tab[tab$Type == "Events",], aes(x=Month, y=Year)) + geom_violin(scale="count") + geom_violin(scale="count", aes(color=Type)) + ggtitle("Months with Significant Years (Events)") + scale_y_continuous(breaks = c(seq(-50,50,50), seq(1800, 2020, by = 100)))
 
-     # Virtually no difference
-     ggplot(tab[tab$Year > 1900,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years > 1900 AD")
+     # Not interesting
+     ggplot(tab[tab$Year > 0 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_violin(scale="count") + geom_violin(scale="count", aes(color=Type)) + ggtitle("Months with Significant Years > 0 AD (Births, Deaths)")
 
-     # Virtually no difference
-     ggplot(tab[tab$Year > 2000,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years > 2000 AD") + scale_y_continuous(breaks = seq(2000, 2020, by = 2))
+     ## Births much less than deaths, duh.
+     ggplot(tab[tab$Year > 1900 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)")
 
-     # Feb, Jan, Oct seem to have a lot of dates nearer to 0 AD
-     ggplot(tab[tab$Year < 1900,], aes(x=Month, y=Year, group=Month)) + geom_violin() + ggtitle("Months with Significant Years < 1900 AD")
+     ## Events... - Really not a significant difference
+     ggplot(tab[tab$Year > 1900 & tab$Type == "Events",], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 1900 AD")
+
+     # Events > 2000, really no significance in months
+     ggplot(tab[tab$Year > 2000 & tab$Type == "Events",], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 2000 AD (Events)") + scale_y_continuous(breaks = seq(2000, 2020, by = 5))
+
+     ## Births/Deaths > 2000, really no significance in months
+     ## - 2012 seems to be a huge death year, and september 2002 seemed good
+     ggplot(tab[tab$Year > 2000 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("Months with Significant Years > 2000 AD (Births, Deaths)") + scale_y_continuous(breaks = seq(2000, 2020, by = 2))
+
 
      # Big Feb, Jan, Oct difference seems to come from less 500 AD and peaks around 20 AD.
-     ggplot(tab[tab$Year < 1000 & tab$Year > -500,], aes(x=Month, y=Year, color=Month)) + geom_boxplot() + ggtitle("500 AD < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
+     ggplot(tab[tab$Year < 1000 & tab$Year > -1000 & tab$Type %in% c("Births","Deaths"),], aes(x=Month, y=Year)) + geom_boxplot(aes(color=Type)) + ggtitle("500 AD < Months with Significant Years < 1000 AD") + scale_y_continuous(breaks = seq(-500, 1000, by = 100))
 
      # Feb is down, August and December up.
      ggplot(tab[tab$Year < 0,], aes(x=Month, y=Year, group=Month)) + geom_boxplot() + ggtitle("Months with Significant Years (BC)") + scale_y_continuous(breaks = seq(-4000, 0, by = 200))
