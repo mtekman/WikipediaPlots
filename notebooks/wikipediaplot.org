@@ -142,7 +142,7 @@
     newdf.to_csv("daysToYearsMap_superwide2.csv")
   #+end_src
 
-
+  
 * Print the CSV using GGplot in R
 
 ** Initial attempt using compact format
@@ -196,8 +196,9 @@ I abandoned this approach and redid the python part above to give a super wide f
 
    #+begin_src R
      library(ggplot2)
-     #library(data.table)
-     #require(reshape2)
+     library(gridExtra)
+     library(lattice)
+     library(grid)
 
      ## Reformat CSV to Data.Frame
      tab <- read.csv("daysToYearsMap_superwide2.csv",
@@ -250,9 +251,15 @@ I abandoned this approach and redid the python part above to give a super wide f
        return(pl1)
      }
 
-     monthplot <- function(dat){return(ggplot(dat, aes(x=Month, y=Year)))}
-     dayplot <- function(dat){return(ggplot(dat, aes(x=Day, y=Year)))}
-     dateplot <- function(dat){return(ggplot(dat, aes(x=Date, y=Year)))}
+     plotit <- function(dat, plot.type){
+       tmp <- NULL
+       switch(plot.type,
+              Month = { tmp <- ggplot(dat, aes(x=Month, y=Year)) },
+              Day = { tmp <- ggplot(dat, aes(x=Day, y=Year)) },
+              Date = { tmp <- ggplot(dat, aes(x=Date, y=Year)) },
+              stop("wrong type"))
+       return(tmp)
+     }
 
 
      #### Sub Datasets ####
@@ -282,66 +289,64 @@ I abandoned this approach and redid the python part above to give a super wide f
      ##### Months #####
      ## 1. All
      ##    - Feb, Jan, Oct seem to have a few dates nearer to 0 AD
-     violin(addNumbers(monthplot(sub.all))) +
+     violin(addNumbers(plotit(sub.all, "Month"))) +
        ggtitle("Months with Significant Years") +
        scale_y_continuous(breaks = c(seq(-4000,0,1000),
                                      seq(-100,100,100),
                                      seq(1800, 2020, by = 100)))
 
      # Births/Deaths ::: Jan, Feb, Oct
-     violin(addNumbers(monthplot(sub.bd), type = "BD",
+     violin(addNumbers(plotit(sub.bd, "Month"), type = "BD",
                        offset = -100, jump = 100)) +
        ggtitle("Months with Significant Years (Births, Deaths)") +
        scale_y_continuous(breaks = c(seq(-50,50,50),
                                      seq(1800, 2020, by = 100)))
 
      # Events -- not interesting
-     violin(addNumbers(monthplot(sub.ev), type = "Ev",
+     violin(addNumbers(plotit(sub.ev, "Month"), type = "Ev",
                        offset = -100, jump = 100)) +
        ggtitle("Months with Significant Years (Events)") +
        scale_y_continuous(breaks = c(seq(-50,50,50), seq(1800, 2020, by = 100)))
 
-
-
      ## Births much less than deaths, duh.
-     addNumbers(monthplot(sub.bd.a1900), type="BD", offset=10, jump=15) +
+     addNumbers(plotit(sub.bd.a1900, "Month"), type="BD", offset=10, jump=15) +
        geom_boxplot(aes(color=Type)) +
        ggtitle("Months with Significant Years > 1900 AD (Births, Deaths)")
 
      ## Events 1900 - 2025 -- No real difference
-     addNumbers(monthplot(sub.ev.a1900), type="Ev", offset=0) +
+     addNumbers(plotit(sub.ev.a1900, "Month"), type="Ev", offset=0) +
        geom_boxplot(aes(color=Type)) +
        ggtitle("Months with Significant Years > 1900 AD (Events)")
 
      # Events 2000 - 2025, really no significance in months
-     addNumbers(monthplot(sub.ev.a2000), type="Ev", offset=0) +
+     addNumbers(plotit(sub.ev.a2000, "Month"), type="Ev", offset=0) +
        geom_boxplot(aes(color=Type)) +
        ggtitle("Months with Significant Years > 2000 AD (Events)") +
        scale_y_continuous(breaks = seq(2000, 2020, by = 5))
 
      ## Births/Deaths > 2000, really no significance in months
      ## - 2012 seems to be a huge death year, and september 2002 seemed good
-     addNumbers(monthplot(sub.bd.a2000) +
+     addNumbers(plotit(sub.bd.a2000, "Month") +
                 geom_boxplot(aes(color=Type)),
                 type="BD", offset = 1, jump = 14) +
        ggtitle("Months with Significant Years > 2000 AD (Births, Deaths)") +
        scale_y_continuous(breaks = seq(2000, 2020, by = 2))
 
      # Births/Deaths 1000 BC to 1000 AD
-     addNumbers(monthplot(sub.bd.t100v100) +
+     addNumbers(plotit(sub.bd.t100v100, "Month") +
                 geom_boxplot(aes(color=Type)),
                 type="BD", offset = 1, jump = 15) +
        ggtitle("1000 BC < Months with Significant Years < 1000 AD (Births, Deaths)") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
 
-     addNumbers(violin(monthplot(sub.ev.t100v100), toplot = c(0,1)),
+     addNumbers(violin(plotit(sub.ev.t100v100, "Month"), toplot = c(0,1)),
                 type="Ev", offset = 1, jump = 14) +
        ggtitle("1000 BC < Months with Significant Years < 1000 AD (Events)") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
      # Feb is down, August and December up.
-     addNumbers(violin(monthplot(sub.all.b0)),
+     addNumbers(violin(plotit(sub.all.b0, "Month")),
                 offset = 0, jump = 250) +
        ggtitle("Months with Significant Years (BC)") +
        scale_y_continuous(breaks = seq(-4000, 0, by = 200))
@@ -349,53 +354,87 @@ I abandoned this approach and redid the python part above to give a super wide f
 
      ### Days
      ## 1 - Most dates between 1700-2000, with a few blips between -100 to 100 in days 5,12,22. Days 3,7,11 seem to have most outliers.
-     addNumbers(violin(dayplot(sub.all)),
+     addNumbers(violin(plotit(sub.all, "Day")),
                 jump = 300, size = 3) +
        ggtitle("Days with Significant Years") +
        scale_y_continuous(breaks = c(seq(-100, 100, by = 100),
                                      seq(1700,2000, by=100)))
 
      ## 2 - Zoomed version of 1
-     addNumbers(violin(dayplot(sub.all.am100)),
+     addNumbers(violin(plotit(sub.all.am100, "Day")),
                 offset = 1000, size = 3) +
        ggtitle("Days with Significant Years ( > 100 BC )") +
        scale_y_continuous(breaks = c(seq(-100, 100, by = 100),
                                      seq(1700,2000, by=100)))
 
-     addNumbers(violin(dayplot(sub.all.t100v100), toplot = c(1,1)),
+     addNumbers(violin(plotit(sub.all.t100v100, "Day"), toplot = c(1,1)),
                 offset = 0, jump = 10, size=3) +
        ggtitle("Days with Significant Years ( 100 BC - 100 AD )") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
-     addNumbers(violin(dayplot(sub.bd.t100v100), toplot = c(1,1)),
+     addNumbers(violin(plotit(sub.bd.t100v100, "Day"), toplot = c(1,1)),
                 offset = 0, jump = 10, size=3) +
        ggtitle("Days with Significant Years ( 100 BC - 100 AD ) (Births,Deaths)") +
        scale_y_continuous(breaks = seq(-100, 100, by = 20))
 
      # More births than deaths overall
-     addNumbers(violin(dayplot(sub.bd), toplot = c(1,1)),
+     addNumbers(violin(plotit(sub.bd, "Day"), toplot = c(1,1)),
                 offset = -100, jump = 150, size=3) +
        ggtitle("Days with Significant Years (Births,Deaths)")
 
      ## More births than deaths overall, post 1900, but no day sticks
      ## out more than any other.
-     addNumbers(dayplot(sub.bd.a1900) + geom_boxplot(aes(color=Type)),
+     addNumbers(plotit(sub.bd.a1900, "Day") + geom_boxplot(aes(color=Type)),
                 offset = -1, jump=7, size=3) +
        ggtitle("Days with Significant Years > 1900 (Births,Deaths)")
 
      ## Same for events, nothing really significant post 1900
-     #addNumbers(
-     dayplot(sub.ev.a1900) +
-       ggtitle("Days with Significant Years > 1900 (Events)") +
-       geom_boxplot(aes(color=Type)) +
-       addNumbers(geom_bar(data=sub.ev.a1900, stat='count', aes(x=Day,y=1900+(..count..*0.05))),
-                  type="Ev", offset=0) +
-       coord_cartesian(ylim = c(1900,2020)) + 
-       scale_y_continuous(sec.axis = sec_axis(~(.-1900)/0.05, breaks = seq(0,600,100),
-                                              name="Number of Observations"))
+     fancyplot <- function(data, type, title, breakers, plot.type="geom_boxplot", scale=0.05, color=color){
+       plotit(data, type) +
+         ggtitle(title) +
+         get(plot.type)(color=color) +
+             geom_bar(data=data, stat='count',
+                      aes(x=get(type),y=min(data$Year)+(..count..*scale))) + 
+             coord_cartesian(
+               ylim = c(min(data$Year)+5, # + 5 for the bottom margin
+                        max(data$Year))) + 
+             scale_y_continuous(
+               name = NULL, #"Years with Events Observed",
+               position="right",
+               sec.axis = sec_axis(~(.-min(data$Year))/scale,
+                                   breaks = breakers,
+                                   name=NULL #"Number of Events"
+                                   )
+             ) +
+             theme(axis.title.y.left = element_text(hjust=0.05))
+     }
 
+     commonfancyplot <- function(topbreaks, topscale, botbreaks, botscale){
 
-     addNumbers(dayplot(sub.ev.a1900) + geom_boxplot(), type="Ev", offset=0)
+       f1 <- fancyplot(sub.ev.a1900, "Day", NULL,
+                       #"Days with Significant Years > 1900 (Events)",
+                       topbreaks, scale=topscale, color="darkgreen")
+       f2 <- fancyplot(sub.ev.a1900, "Month", NULL,
+                       #"Months with Significant Years > 1900 (Events)",
+                       topbreaks, scale=topscale, color="darkgreen")
+       f3 <- fancyplot(sub.bd.a1900, "Day", NULL,
+                       #"Days with Significant Years > 1900 (Births,Deaths)",
+                       botbreaks, scale=botscale, color="darkblue")
+       f4 <- fancyplot(sub.bd.a1900, "Month", NULL,
+                       #"Months with Significant Years > 1900 (Births,Deaths)",
+                       botbreaks, scale=botscale, color="darkblue")
+  
+       pp1 <- f1 + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank(),
+                         axis.title.x = element_blank(), axis.text.x = element_blank())
+       pp2 <- f2 + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank(),
+                         axis.title.x = element_blank(), axis.text.x = element_blank())
+       pp3 <- f3 + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank())
+       pp4 <- f4 + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank())
+
+       grid.arrange(pp1,pp2,pp3,pp4,ncol=2) + theme(axis.title.y = "Years with Events Observed")
+     }
+
+     commonfancyplot(seq(0,1000,200), 0.03, seq(0,8000,2000), 0.003)
    #+end_src
 
    
