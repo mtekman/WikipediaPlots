@@ -199,16 +199,17 @@ I abandoned this approach and redid the python part above to give a super wide f
      library(gridExtra)
      library(lattice)
      library(grid)
+     library(gtable)
 
      ## Reformat CSV to Data.Frame
      tab <- read.csv("daysToYearsMap_superwide2.csv",
                      row.names=1,
                      stringsAsFactors = F, sep = ",")
 
-     tab$Month <- factor(sub("(.*)_\\d*", "\\1", tab$Date),
-                         levels=c("January", "February", "March", "April", "May",
-                                  "June", "July", "August", "September", "October",
-                                  "November", "December"))
+     tab$Month <- factor(sub("(^...).*_\\d*", "\\1", tab$Date), # sub("(.*)_\\d*", "\\1", tab$Date),
+                         levels=c("Jan", "Feb", "Mar", "Apr", "May",
+                                  "Jun", "Jul", "Aug", "Sep", "Oct",
+                                  "Nov", "Dec"))
      tab$Day <- factor(as.integer(sub(".*_(\\d*)", "\\1", tab$Date)),
                        levels=seq(1,31))
 
@@ -270,14 +271,14 @@ I abandoned this approach and redid the python part above to give a super wide f
      sub.all.a2000 <- tab[tab$Year > 2000,]
      sub.all.b1000 <- tab[tab$Year < 1000,]
      sub.all.b0 <- tab[tab$Year < 0,]
-
+     #
      sub.bd <- tab[tab$Type %in% c("Births","Deaths"),]
      sub.bd.t100v100 <- sub.bd[sub.bd$Year < 100 & sub.bd$Year > -100,]
      sub.bd.a1900 <- sub.bd[sub.bd$Year > 1900,]
      sub.bd.a2000 <- sub.bd[sub.bd$Year > 2000,]
      sub.bd.b1000 <- sub.bd[sub.bd$Year < 1000,]
      sub.bd.b0 <- sub.bd[sub.bd$Year < 0,]
-
+     #
      sub.ev <- tab[tab$Type=="Events",]
      sub.ev.t100v100 <- sub.ev[sub.ev$Year < 100 & sub.ev$Year > -100,]
      sub.ev.a1900 <- sub.ev[sub.ev$Year > 1900,]
@@ -392,7 +393,7 @@ I abandoned this approach and redid the python part above to give a super wide f
      fancyplot <- function(data, type, title, breakers, plot.type="geom_boxplot", scale=0.05, color=color){
        plotit(data, type) +
          ggtitle(title) +
-         get(plot.type)(color=color) +
+         get(plot.type)(fill=color, color="grey", notch=T) +
              geom_bar(data=data, stat='count',
                       aes(x=get(type),y=min(data$Year)+(..count..*scale))) + 
              coord_cartesian(
@@ -410,20 +411,19 @@ I abandoned this approach and redid the python part above to give a super wide f
      }
 
      commonfancyplot <- function(topbreaks, topscale, botbreaks, botscale){
-
-       f1 <- fancyplot(sub.ev.a1900, "Day", NULL,
-                       #"Days with Significant Years > 1900 (Events)",
-                       topbreaks, scale=topscale, color="darkgreen")
-       f2 <- fancyplot(sub.ev.a1900, "Month", NULL,
+       f1 <- fancyplot(sub.ev.a1900, "Month", NULL,
                        #"Months with Significant Years > 1900 (Events)",
                        topbreaks, scale=topscale, color="darkgreen")
-       f3 <- fancyplot(sub.bd.a1900, "Day", NULL,
-                       #"Days with Significant Years > 1900 (Births,Deaths)",
-                       botbreaks, scale=botscale, color="darkblue")
-       f4 <- fancyplot(sub.bd.a1900, "Month", NULL,
+       f2 <- fancyplot(sub.ev.a1900, "Day", NULL,
+                       #"Day with Significant Years > 1900 (Events)",
+                       topbreaks, scale=topscale, color="darkgreen")
+       f3 <- fancyplot(sub.bd.a1900, "Month", NULL,
                        #"Months with Significant Years > 1900 (Births,Deaths)",
-                       botbreaks, scale=botscale, color="darkblue")
-  
+                       botbreaks, scale=botscale, color="darkred")
+       f4 <- fancyplot(sub.bd.a1900, "Day", NULL,
+                       #"Day with Significant Years > 1900 (Births,Deaths)",
+                       botbreaks, scale=botscale, color="darkred")
+
        pp1 <- f1 + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank(),
                          axis.title.x = element_blank(), axis.text.x = element_blank())
        pp2 <- f2 + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank(),
@@ -431,10 +431,20 @@ I abandoned this approach and redid the python part above to give a super wide f
        pp3 <- f3 + theme(axis.title.y.right = element_blank(), axis.text.y.right = element_blank())
        pp4 <- f4 + theme(axis.title.y.left = element_blank(), axis.text.y.left = element_blank())
 
-       grid.arrange(pp1,pp2,pp3,pp4,ncol=2) + theme(axis.title.y = "Years with Events Observed")
+       legend = gtable_filter(ggplotGrob(pp1), "guide-box")
+  
+       grid.arrange(
+         arrangeGrob(pp1,pp2,pp3,pp4,ncol=2,
+                     top = textGrob("Significant Years (1900 - Now)", vjust = 1,
+                                    gp = gpar(fontface = "bold", cex = 1.5)),
+                     left = textGrob("Number of Observed Events", rot = 90, vjust = 1),
+                     right = textGrob("Years of Observed Events", rot = -90, vjust = 1)),
+         legend,
+         widths=c(2, 1),
+         nrow=1)
      }
 
-     commonfancyplot(seq(0,1000,200), 0.03, seq(0,8000,2000), 0.003)
+     commonfancyplot(seq(0,1000,200), 0.03, seq(0,8000,2000), 0.003) 
    #+end_src
 
    
