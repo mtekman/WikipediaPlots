@@ -393,7 +393,7 @@ I abandoned this approach and redid the python part above to give a super wide f
      fancyplot <- function(data, type, title, breakers, plot.type="geom_boxplot", scale=0.05, color=color){
        plotit(data, type) +
          ggtitle(title) +
-         get(plot.type)(fill=color, color="grey", notch=T) +
+         get(plot.type)(fill=color, color="grey", notch=F) +
              geom_bar(data=data, stat='count',
                       aes(x=get(type),y=min(data$Year)+(..count..*scale))) + 
              coord_cartesian(
@@ -410,17 +410,17 @@ I abandoned this approach and redid the python part above to give a super wide f
              theme(axis.title.y.left = element_text(hjust=0.05))
      }
 
-     commonfancyplot <- function(topbreaks, topscale, botbreaks, botscale){
-       f1 <- fancyplot(sub.ev.a1900, "Month", NULL,
+     commonfancyplot <- function(dataset, title, topbreaks, topscale, botbreaks, botscale){
+       f1 <- fancyplot(dataset, "Month", NULL,
                        #"Months with Significant Years > 1900 (Events)",
                        topbreaks, scale=topscale, color="darkgreen")
-       f2 <- fancyplot(sub.ev.a1900, "Day", NULL,
+       f2 <- fancyplot(dataset, "Day", NULL,
                        #"Day with Significant Years > 1900 (Events)",
                        topbreaks, scale=topscale, color="darkgreen")
-       f3 <- fancyplot(sub.bd.a1900, "Month", NULL,
+       f3 <- fancyplot(dataset, "Month", NULL,
                        #"Months with Significant Years > 1900 (Births,Deaths)",
                        botbreaks, scale=botscale, color="darkred")
-       f4 <- fancyplot(sub.bd.a1900, "Day", NULL,
+       f4 <- fancyplot(dataset, "Day", NULL,
                        #"Day with Significant Years > 1900 (Births,Deaths)",
                        botbreaks, scale=botscale, color="darkred")
 
@@ -435,16 +435,17 @@ I abandoned this approach and redid the python part above to give a super wide f
   
        grid.arrange(
          arrangeGrob(pp1,pp2,pp3,pp4,ncol=2,
-                     top = textGrob("Significant Years (1900 - Now)", vjust = 1,
+                     top = textGrob(title, vjust = 1,
                                     gp = gpar(fontface = "bold", cex = 1.5)),
                      left = textGrob("Number of Observed Events", rot = 90, vjust = 1),
                      right = textGrob("Years of Observed Events", rot = -90, vjust = 1)),
          legend,
-         widths=c(2, 1),
-         nrow=1)
+         widths=c(8,1), nrow=1)
      }
 
-     commonfancyplot(seq(0,1000,200), 0.03, seq(0,8000,2000), 0.003) 
+     commonfancyplot(sub.ev.a1900, "Significant Years (1900 - Now)", seq(0,1000,200), 0.03, seq(0,8000,2000), 0.003)
+
+     commonfancyplot(sub.ev.t100v100, "Significant Years (100 BC - 100 AD)", seq(0,1000,200), 0.0003, seq(0,8000,2000), 0.00003) 
    #+end_src
 
    
