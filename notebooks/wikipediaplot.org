@@ -196,7 +196,7 @@ I abandoned this approach and redid the python part above to give a super wide f
 
 *** Initialise and Filter Datasets
 
-   #+begin_src R
+   #+begin_src R :session yes
      library(ggplot2)
      library(gridExtra)
      library(lattice)
@@ -240,9 +240,10 @@ I abandoned this approach and redid the python part above to give a super wide f
 
    #+end_src
 
+
 *** Plotting Helper Functions
 
-   #+begin_src R
+   #+begin_src R :session yes
      addNumbers <- function(plt, type="All", offset = -100, jump = 150, size = 4){
        pl1 <- plt
        tab <- plt$data
@@ -461,7 +462,7 @@ I abandoned this approach and redid the python part above to give a super wide f
 
 **** Plots
 
-   #+begin_src R
+   #+begin_src R :session yes
      commonfancyplot(sub.all, "Significant Years: All",
                      seq(0,10000,5000), 0.08, ptype = "geom_violin", yoff=0)
 
