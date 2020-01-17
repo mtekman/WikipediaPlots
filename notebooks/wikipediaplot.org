@@ -535,9 +535,9 @@ I abandoned this approach and redid the python part above to give a super wide f
           theme(legend.position="none")
 
         tab <- arrangeGrob(month.bd, days.bd, month.ev, days.ev, ncol=2,
-                           top = textGrob(title, vjust = 1, gp = gpar(fontface = "bold", cex = 1.5)),
-                           left = textGrob("Number of Observed Events", rot = 90, vjust = 1),
-                           right = textGrob("Years of Observed Events", rot = -90, vjust = 1))
+                           top = textGrob(title, vjust = 1, gp = gpar(fontface = "bold", cex = 1.2)),
+                           left = textGrob("Number of Significant Events", rot = 90, vjust = 1),
+                           right = textGrob("Significant Years", rot = -90, vjust = 1))
         plot(tab)
       }
 
@@ -550,7 +550,19 @@ I abandoned this approach and redid the python part above to give a super wide f
       summaryplot("Significant Years by Month and Day (1900 - Now)", sub.bd.a1900, sub.ev.a1900,
         breaks.left = list(seq(0,8000,2000), seq(0,1000,200), seq(0,3000,1000), seq(0,500,100)),
         breaks.right = list(seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50)),
-        scales = c(0.008, 0.07, 0.02, 0.15),
+        scales = c(0.009, 0.075, 0.03, 0.2),
         yoffs = c(-80, -80, -80, -80))
+
+      summaryplot("Significant Years by Month and Day (Before 0 AD)", sub.bd.b0, sub.ev.b0,
+        breaks.left = list(seq(0,10,2), seq(0,15,5), seq(0,5,1), seq(0,8,2)),
+        breaks.right = list(seq(-4000,0,100), seq(-4000,0,1000), seq(-4000,0,100), seq(-4000,0,1000)),
+        scales = c(20, 80, 50, 180),
+        yoffs = c(-50, -100, -50, -100))
+
+      summaryplot("Significant Years by Month and Day (100 BC - 100 AD)", sub.bd.t100v100, sub.ev.t100v100,
+        breaks.left = list(seq(0,350,50), seq(0,15,5), seq(0,350,50), seq(0,8,2)),
+        breaks.right = list(seq(-100,100,50), seq(-100,100,50), seq(-100,100,50), seq(-100,100,50)),
+        scales = c(0.35, 8, 0.35, 16),
+        yoffs = c(-50, -100, -50, -100))
 
     #+end_src
