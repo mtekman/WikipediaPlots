@@ -487,3 +487,69 @@ I abandoned this approach and redid the python part above to give a super wide f
                      seq(0,10,5), 20, yoff=-50)
 
    #+end_src
+*** Better Combined Plots
+
+    #+begin_src R :session yes
+      fancyplot <- function(data, type, title, breaks.left, breaks.right,
+                            scale=0.05, color=c("red","green"), yoff=0){
+        prt <- plotit(data, type) + ggtitle(title) + geom_violin(fill="white", color=color[[1]]) +
+          geom_bar(data=data, stat='count',
+                   aes(x=get(type),y=..count..*scale),
+                   position = position_nudge(y=yoff+min(data$Year)))
+
+        if (type=="Day"){
+          prt <- prt + geom_boxplot(fill=color[[1]], notch=F, color="black", width=0.3,
+                                    outlier.colour = NULL, outlier.size = 0.1)
+        } else {
+          prt <- prt + geom_boxplot(aes(fill=Type), notch=F, color="black", width=0.3,
+                                    outlier.colour = NULL, outlier.size = 0.1)
+        }
+
+        prt + coord_cartesian(
+                ylim = c(yoff+min(data$Year)+5, # + 5 for the bottom margin
+                         max(data$Year))) +
+          scale_y_continuous(name = NULL,
+                             position="right",
+                             breaks = breaks.right,
+                             sec.axis = sec_axis(~(.-(yoff+min(data$Year)))/scale,
+                                                 breaks = breaks.left,
+                                                 name=NULL)) +
+          theme(axis.title.y.left = element_text(hjust=0.05))
+      }
+
+      summaryplot <- function(title, data.bd, data.ev, breaks.left, breaks.right, scales, yoffs){
+        month.bd <- fancyplot(data.bd, "Month", NULL, breaks.left[[1]], breaks.right[[1]],
+                              scales[[1]], color=c("darkred","black"), yoffs[[1]]) +
+          theme(legend.position="none", axis.title.x = element_blank(),
+                axis.text.x = element_blank(), axis.text.y.right = element_blank())
+        month.ev <- fancyplot(data.ev, "Month", NULL, breaks.left[[2]], breaks.right[[2]],
+                              scales[[2]], color=c("darkred","black"), yoffs[[2]]) +
+          theme(legend.position="none", axis.text.y.right = element_blank())
+        days.bd <- fancyplot(data.bd, "Day", NULL, breaks.left[[3]], breaks.right[[3]],
+                             scales[[3]], color=c("darkgreen","black"), yoffs[[3]]) +
+          theme(legend.position="none", axis.title.x = element_blank(),
+                axis.text.x = element_blank())
+        days.ev <- fancyplot(data.ev, "Day", NULL, breaks.left[[4]], breaks.right[[4]],
+                             scales[[4]], color=c("darkgreen","black"), yoffs[[4]]) +
+          theme(legend.position="none")
+
+        tab <- arrangeGrob(month.bd, days.bd, month.ev, days.ev, ncol=2,
+                           top = textGrob(title, vjust = 1, gp = gpar(fontface = "bold", cex = 1.5)),
+                           left = textGrob("Number of Observed Events", rot = 90, vjust = 1),
+                           right = textGrob("Years of Observed Events", rot = -90, vjust = 1))
+        plot(tab)
+      }
+
+      summaryplot("Significant Years by Month and Day", sub.bd, sub.ev,
+        breaks.left = list(seq(0,10000,2000), seq(0,1500,500), seq(0,5000,1000), seq(0,800,200)),
+        breaks.right = list(seq(-4000,2000,500), seq(-4000,2000,1000), seq(-4000,2000,500), seq(-4000,2000,1000)),
+        scales = c(0.1, 1.5, 0.3, 3),
+        yoffs = c(-30, -30, -30, -30))
+
+      summaryplot("Significant Years by Month and Day (1900 - Now)", sub.bd.a1900, sub.ev.a1900,
+        breaks.left = list(seq(0,8000,2000), seq(0,1000,200), seq(0,3000,1000), seq(0,500,100)),
+        breaks.right = list(seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50)),
+        scales = c(0.008, 0.07, 0.02, 0.15),
+        yoffs = c(-80, -80, -80, -80))
+
+    #+end_src
