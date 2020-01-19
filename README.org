@@ -1,5 +1,16 @@
+#+TITLE: Wikipedia Plots
+
+This is just a small little project that tries to summarise the Wikipedia articles that consist of a day of the year (e.g. [[https://en.wikipedia.org/wiki/January_12][January 12]]). Each one of these 366 articles lists years where:
+
+1. A significant event happened (e.g. 1895, /The National Trust is founded in the United Kingdom/)
+2. Someone is born (e.g. 1772, /Mikhail Speransky/, Russian academic and politician)
+3. Someone dies (e.g. 1665, /Pierre de Fermat/, French mathematician and lawyer)
+
+The following plots summarize Births/Deaths, and Events to see if there are any significant months (12) or days (31) that can claim a bias in any of the above three types. 
 
 * Accumulate Data
+
+Python is good for scraping data. Data is collected in a short format of day → type → years, but was then later converted into a wide format so that every observed event has it's own line. 
 
   #+begin_src python :session yes
     import sys
@@ -144,6 +155,8 @@
 
 
 * Print the CSV using GGplot in R
+
+R is great for plotting and sorting, so we will use that. None of the dplyr stuff, otherwise I might as well just use a shell.
 
 ** Initial attempt using compact format
 
@@ -487,7 +500,6 @@ I abandoned this approach and redid the python part above to give a super wide f
                      seq(0,10,5), 20, yoff=-50)
 
    #+end_src
-
 
 ** Better Combined Plots
 
