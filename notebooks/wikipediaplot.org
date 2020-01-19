@@ -193,7 +193,7 @@ Trying to plot a boxplot when the data is structured from tab["January_1"]["Even
 I abandoned this approach and redid the python part above to give a super wide format so that each year is an observation and that variables are Year, Date, isEvent, isBirth, isDeath.
 
 ** Second attempt using wide format
-
+   
 *** Initialise and Filter Datasets
 
    #+begin_src R :session yes
@@ -239,7 +239,6 @@ I abandoned this approach and redid the python part above to give a super wide f
      sub.ev.b0 <- sub.ev[sub.ev$Year < 0,]
 
    #+end_src
-
 
 *** Plotting Helper Functions
 
@@ -488,81 +487,182 @@ I abandoned this approach and redid the python part above to give a super wide f
                      seq(0,10,5), 20, yoff=-50)
 
    #+end_src
-*** Better Combined Plots
 
-    #+begin_src R :session yes
-      fancyplot <- function(data, type, title, breaks.left, breaks.right,
-                            scale=0.05, color=c("red","green"), yoff=0){
-        prt <- plotit(data, type) + ggtitle(title) + geom_violin(fill="white", color=color[[1]]) +
-          geom_bar(data=data, stat='count',
-                   aes(x=get(type),y=..count..*scale),
-                   position = position_nudge(y=yoff+min(data$Year)))
 
-        if (type=="Day"){
-          prt <- prt + geom_boxplot(fill=color[[1]], notch=F, color="black", width=0.3,
-                                    outlier.colour = NULL, outlier.size = 0.1)
-        } else {
-          prt <- prt + geom_boxplot(aes(fill=Type), notch=F, color="black", width=0.3,
-                                    outlier.colour = NULL, outlier.size = 0.1)
-        }
+** Better Combined Plots
 
-        prt + coord_cartesian(
-                ylim = c(yoff+min(data$Year)+5, # + 5 for the bottom margin
-                         max(data$Year))) +
-          scale_y_continuous(name = NULL,
-                             position="right",
-                             breaks = breaks.right,
-                             sec.axis = sec_axis(~(.-(yoff+min(data$Year)))/scale,
-                                                 breaks = breaks.left,
-                                                 name=NULL)) +
-          theme(axis.title.y.left = element_text(hjust=0.05))
-      }
+*** Initialise and Filter Datasets
 
-      summaryplot <- function(title, data.bd, data.ev, breaks.left, breaks.right, scales, yoffs){
-        month.bd <- fancyplot(data.bd, "Month", NULL, breaks.left[[1]], breaks.right[[1]],
-                              scales[[1]], color=c("darkred","black"), yoffs[[1]]) +
-          theme(legend.position="none", axis.title.x = element_blank(),
-                axis.text.x = element_blank(), axis.text.y.right = element_blank())
-        month.ev <- fancyplot(data.ev, "Month", NULL, breaks.left[[2]], breaks.right[[2]],
-                              scales[[2]], color=c("darkred","black"), yoffs[[2]]) +
-          theme(legend.position="none", axis.text.y.right = element_blank())
-        days.bd <- fancyplot(data.bd, "Day", NULL, breaks.left[[3]], breaks.right[[3]],
-                             scales[[3]], color=c("darkgreen","black"), yoffs[[3]]) +
-          theme(legend.position="none", axis.title.x = element_blank(),
-                axis.text.x = element_blank())
-        days.ev <- fancyplot(data.ev, "Day", NULL, breaks.left[[4]], breaks.right[[4]],
-                             scales[[4]], color=c("darkgreen","black"), yoffs[[4]]) +
-          theme(legend.position="none")
+   #+begin_src R :session yes
+     library(ggplot2)
+     library(gridExtra)
+     library(lattice)
+     library(grid)
+     library(gtable)
 
-        tab <- arrangeGrob(month.bd, days.bd, month.ev, days.ev, ncol=2,
-                           top = textGrob(title, vjust = 1, gp = gpar(fontface = "bold", cex = 1.2)),
-                           left = textGrob("Number of Significant Events", rot = 90, vjust = 1),
-                           right = textGrob("Significant Years", rot = -90, vjust = 1))
-        plot(tab)
-      }
+     ## Reformat CSV to Data.Frame
+     tab <- read.csv("daysToYearsMap_superwide2.csv",
+                     row.names=1,
+                     stringsAsFactors = F, sep = ",")
 
-      summaryplot("Significant Years by Month and Day", sub.bd, sub.ev,
-        breaks.left = list(seq(0,10000,2000), seq(0,1500,500), seq(0,5000,1000), seq(0,800,200)),
-        breaks.right = list(seq(-4000,2000,500), seq(-4000,2000,1000), seq(-4000,2000,500), seq(-4000,2000,1000)),
-        scales = c(0.1, 1.5, 0.3, 3),
-        yoffs = c(-30, -30, -30, -30))
+     tab$Month <- factor(sub("(^...).*_\\d*", "\\1", tab$Date), # sub("(.*)_\\d*", "\\1", tab$Date),
+                         levels=c("Jan", "Feb", "Mar", "Apr", "May",
+                                  "Jun", "Jul", "Aug", "Sep", "Oct",
+                                  "Nov", "Dec"))
+     tab$Day <- factor(as.integer(sub(".*_(\\d*)", "\\1", tab$Date)),
+                       levels=seq(1,31))
 
-      summaryplot("Significant Years by Month and Day (1900 - Now)", sub.bd.a1900, sub.ev.a1900,
-        breaks.left = list(seq(0,8000,2000), seq(0,1000,200), seq(0,3000,1000), seq(0,500,100)),
-        breaks.right = list(seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50), seq(1850,2020,50)),
-        scales = c(0.009, 0.075, 0.03, 0.2),
-        yoffs = c(-80, -80, -80, -80))
+     #### Sub Datasets ####
+     sub.all <- tab
+     sub.all.t100v100 <- tab[tab$Year < 100 & tab$Year > -100,]
+     sub.all.am100 <- tab[tab$Year > -100,]
+     sub.all.a1900 <- tab[tab$Year > 1900,]
+     sub.all.a2000 <- tab[tab$Year > 2000,]
+     sub.all.b1000 <- tab[tab$Year < 1000,]
+     sub.all.b0 <- tab[tab$Year < 0,]
+     #
+     sub.bd <- tab[tab$Type %in% c("Births","Deaths"),]
+     sub.bd.t100v100 <- sub.bd[sub.bd$Year < 100 & sub.bd$Year > -100,]
+     sub.bd.a1900 <- sub.bd[sub.bd$Year > 1900,]
+     sub.bd.a2000 <- sub.bd[sub.bd$Year > 2000,]
+     sub.bd.b1000 <- sub.bd[sub.bd$Year < 1000,]
+     sub.bd.b0 <- sub.bd[sub.bd$Year < 0,]
+     #
+     sub.ev <- tab[tab$Type=="Events",]
+     sub.ev.t100v100 <- sub.ev[sub.ev$Year < 100 & sub.ev$Year > -100,]
+     sub.ev.a1900 <- sub.ev[sub.ev$Year > 1900,]
+     sub.ev.a2000 <- sub.ev[sub.ev$Year > 2000,]
+     sub.ev.b1000 <- sub.ev[sub.ev$Year < 1000,]
+     sub.ev.b0 <- sub.ev[sub.ev$Year < 0,]
 
-      summaryplot("Significant Years by Month and Day (Before 0 AD)", sub.bd.b0, sub.ev.b0,
-        breaks.left = list(seq(0,10,2), seq(0,15,5), seq(0,5,1), seq(0,8,2)),
-        breaks.right = list(seq(-4000,0,100), seq(-4000,0,1000), seq(-4000,0,100), seq(-4000,0,1000)),
-        scales = c(20, 80, 50, 180),
-        yoffs = c(-50, -100, -50, -100))
+     dim(sub.ev)
 
-      summaryplot("Significant Years by Month and Day (100 BC - 100 AD)", sub.bd.t100v100, sub.ev.t100v100,
-        breaks.left = list(seq(0,350,50), seq(0,15,5), seq(0,350,50), seq(0,8,2)),
-        breaks.right = list(seq(-100,100,50), seq(-100,100,50), seq(-100,100,50), seq(-100,100,50)),
-        scales = c(0.35, 8, 0.35, 16),
-        yoffs = c(-50, -100, -50, -100))
+   #+end_src
 
-    #+end_src
+   #+RESULTS:
+   | 17676 |
+   |     5 |
+
+*** Plot
+
+   #+begin_src R :session yes
+     plotit <- function(dat, plot.type){
+       tmp <- NULL
+       switch(plot.type,
+              Month = { tmp <- ggplot(dat, aes(x=Month, y=Year)) },
+              Day = { tmp <- ggplot(dat, aes(x=Day, y=Year)) },
+              Date = { tmp <- ggplot(dat, aes(x=Date, y=Year)) },
+              stop("wrong type"))
+       return(tmp)
+     }
+
+     eventplot <- function (data, type, color, breaks.left, breaks.right, scale, yoff){
+       plotit(data, type) +
+         geom_violin(fill="white", color="grey") +
+         geom_bar(data=data, stat='count',
+                  aes(x=get(type), y=..count..*scale), fill=color,
+                  position = position_nudge(y=yoff+min(data$Year))) +
+         geom_boxplot(fill=color, notch=F, color="black", width=0.3,
+                      outlier.colour = NULL, outlier.size = 0.1) +
+         coord_cartesian(ylim = c(yoff+min(data$Year)+5, max(data$Year))) +
+         scale_y_continuous(name = NULL, position="right", breaks = breaks.right,
+                            sec.axis = sec_axis(~(.-(yoff+min(data$Year)))/scale,
+                                                breaks = breaks.left, name=NULL)) +
+         theme(axis.title.y.left = element_text(hjust=0.05))
+     }
+
+     birthdeathplot <- function(data, type, color, breaks.left, breaks.right, scale, yoff){
+       prt <- plotit(data, type) + geom_violin(fill="white", color="grey")
+
+       iscolor <- !is.na(color)
+       ismulti <- length(unique(data$Type))
+
+       if (iscolor && ismulti){
+         prt <- prt +
+           geom_bar(data=data, stat='count',
+                    aes(x=get(type), y=..count..*scale, fill=Type),
+                    position = position_nudge(y=yoff+min(data$Year))) +
+           ## Here we have a day plot, which could have multi types, but we want
+           ## to keep it all grouped together
+           geom_boxplot(fill=color,
+                        notch=F, color="black", width=0.3,
+                        outlier.colour = NULL, outlier.size = 0.1)
+       } else if (iscolor && !ismulti){
+         prt <- prt +
+           geom_bar(data=data, stat='count',
+                    aes(x=get(type), y=..count..*scale), fill=color,
+                    position = position_nudge(y=yoff+min(data$Year))) +
+           geom_boxplot(fill=color,
+                        notch=F, color="black", width=0.3,
+                        outlier.colour = NULL, outlier.size = 0.1)
+       } else if (!iscolor && ismulti){
+         prt <- prt +
+           geom_bar(data=data, stat='count',
+                    aes(x=get(type), y=..count..*scale, fill=Type),
+                    position = position_nudge(y=yoff+min(data$Year))) +
+           geom_boxplot(aes(fill=Type),
+                        notch=F, color="black", width=0.3,
+                        outlier.colour = NULL, outlier.size = 0.1)
+       } else {
+         stop("Need to give either a colour or provide multi type dataset")
+       }
+
+       prt + coord_cartesian(ylim = c(yoff+min(data$Year)+5, max(data$Year))) +
+         scale_y_continuous(name = NULL, position="right", breaks = breaks.right,
+                            sec.axis = sec_axis(~(.-(yoff+min(data$Year)))/scale,
+                                                breaks = breaks.left, name=NULL)) +
+         theme(axis.title.y.left = element_text(hjust=0.05))
+     }
+
+     summaryplot <- function(title, data.bd, data.ev, breaks.left, breaks.right, scales, yoffs)
+     {
+       month.bd <- birthdeathplot(data.bd, "Month", NA, breaks.left[[1]], breaks.right[[1]], scales[[1]], yoffs[[1]]) +
+         theme(legend.position="none", axis.title.x = element_blank(), axis.text.x = element_blank(), axis.text.y.right = element_blank())
+       days.bd <- birthdeathplot(data.bd, "Day", "purple", breaks.left[[3]], breaks.right[[3]], scales[[3]], yoffs[[3]]) +
+         theme(legend.position="none", axis.title.x = element_blank(), axis.text.x = element_blank())
+       month.ev <- eventplot(data.ev, "Month", "yellow", breaks.left[[2]], breaks.right[[2]], scales[[2]], yoffs[[2]]) +
+         theme(legend.position="none", axis.text.y.right = element_blank())
+       days.ev <- eventplot(data.ev, "Day", "yellow", breaks.left[[4]], breaks.right[[4]], scales[[4]], yoffs[[4]]) +
+         theme(legend.position="none")
+
+       tab <- arrangeGrob(month.bd, days.bd, month.ev, days.ev, ncol=2,
+                          top = textGrob(title, vjust = 1, gp = gpar(fontface = "bold", cex = 2)),
+                          left = textGrob("Number of Significant Events", rot = 90, vjust = 1,
+                                          gp = gpar(fontsize = 20)),
+                          right = textGrob("Significant Years", rot = -90, vjust = 1,
+                                           gp = gpar(fontsize = 20)))
+       plot(tab)
+     }
+
+     png("sig.all.png", width=1000, height=1000)
+     summaryplot("Significant Years by Month and Day", sub.bd, sub.ev,
+       breaks.left = list(seq(0,8000,2000), seq(0,1500,500), seq(0,3000,1000), seq(0,800,200)),
+       breaks.right = list(seq(-4000,2000,500), seq(-4000,2000,1000), seq(-4000,2000,500), seq(-4000,2000,1000)),
+       scales = c(0.1, 1.5, 0.3, 3),
+       yoffs = c(-200, -200, -200, -200))
+     dev.off()
+
+     png("sig.b0.png", width=1000, height=1000)
+     summaryplot("Significant Years by Month and Day (Before 0 AD)", sub.bd.b0, sub.ev.b0,
+       breaks.left = list(seq(0,10,2), seq(0,15,5), seq(0,5,1), seq(0,8,2)),
+       breaks.right = list(seq(-4000,0,100), seq(-4000,0,500), seq(-4000,0,100), seq(-4000,0,500)),
+       scales = c(20, 80, 50, 180),
+       yoffs = c(-50, -100, -50, -100))
+     dev.off()
+
+     png("sig.100m100.png", width=1000, height=1000)
+     summaryplot("Significant Years by Month and Day (100 BC - 100 AD)", sub.bd.t100v100, sub.ev.t100v100,
+       breaks.left = list(seq(0,350,50), seq(0,15,5), seq(0,350,50), seq(0,8,2)),
+       breaks.right = list(seq(-100,100,20), seq(-100,100,20), seq(-100,100,20), seq(-100,100,20)),
+       scales = c(0.35, 8, 0.35, 16),
+       yoffs = c(-50, -100, -50, -100))
+     dev.off()
+
+     png("sig.1900mnow.png", width=1000, height=1000)
+     summaryplot("Significant Years by Month and Day (1900 - Now)", sub.bd.a1900, sub.ev.a1900,
+       breaks.left = list(seq(0,6000,2000), seq(0,1000,200), seq(0,2500,500), seq(0,500,100)),
+       breaks.right = list(seq(1890,2020,20), seq(1890,2020,20), seq(1890,2020,20), seq(1890,2020,20)),
+       scales = c(0.008, 0.075, 0.03, 0.15),
+       yoffs = c(-40, -60, -40, -60))
+     dev.off()
+   #+end_src
