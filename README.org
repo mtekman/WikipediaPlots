@@ -1,5 +1,10 @@
 #+TITLE: Wikipedia Plots
 
+*** This repo has migrated to GitLab
+https://gitlab.com/mtekman/WikipediaPlots
+****** (The copy here is archived. Please see the above link for the latest developments)
+
+
 This is just a small little project that tries to summarise the Wikipedia articles that consist of a day of the year (e.g. [[https://en.wikipedia.org/wiki/January_12][January 12]]). Each one of these 366 articles lists years where:
 
 1. A significant event happened (e.g. 1895, /The National Trust is founded in the United Kingdom/)
